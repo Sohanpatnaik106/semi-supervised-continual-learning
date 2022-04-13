@@ -37,6 +37,8 @@ class DistillMatch(NormalNN):
         self.fm_thresh = float(learner_config['fm_thresh'])
         self.fm = {'thresh': self.fm_thresh}
         self.fm_epsilon = float(learner_config['fm_epsilon'])
+        self.threshold_warmup = learner_config['threshold_warmup']
+        self.non_linear_mapping = learner_config['non_linear_mapping']
 
         # ood model
         self.ood_model = self.create_ood_model()
@@ -402,7 +404,7 @@ class DistillMatch(NormalNN):
         #   1. Without warm up
         #   2. With warm up
         #   3. Warm up + non linear mapping
-        
+
         classes = np.unique(np.array(yu.cpu()))
         sigma = np.zeros(self.num_classes)
 
@@ -411,7 +413,14 @@ class DistillMatch(NormalNN):
             b = np.array((np.argmax(np.array(prob_xu.cpu()), axis = 1) == np.array(yu.cpu())[0]))
             sigma[c] = np.sum(np.logical_and(a, b))
 
-        beta = sigma / (np.max(sigma) + self.fm_epsilon)
+        if not self.threshold_warmup:
+            beta = sigma / (np.max(sigma) + self.fm_epsilon)
+        else:
+            beta = sigma / (np.max(np.max(sigma), sigma.shape[0] - np.sum(sigma)) + self.fm_epsilon)
+
+        if self.non_linear_mapping:
+            beta = beta / (2 - beta)
+
         thresh = beta * self.fm['thresh']
 
         return thresh
@@ -448,11 +457,11 @@ class DistillMatch(NormalNN):
                 wu, yu = torch.max(prob_xu, dim=1, keepdim=True)
                 yu = yu.repeat(1, ku-1) + task[0]
 
-                # if self.dynamic_threshold:
-                thresh = self.get_dynamic_threshold(prob_xu, wu, yu, c)
-                wu = torch.tensor((np.array(wu.cpu()) > thresh[np.array(yu.cpu())])).to('cuda')
-                # else:
-                    # wu = (wu > self.fm['thresh']).repeat(1, ku-1)
+                if self.dynamic_threshold:
+                    thresh = self.get_dynamic_threshold(prob_xu, wu, yu, c)
+                    wu = torch.tensor((np.array(wu.cpu()) > thresh[np.array(yu.cpu())])).to('cuda')
+                else:
+                    wu = (wu > self.fm['thresh']).repeat(1, ku-1)
                     
                 # consistency loss
                 loss_con_sum = F.cross_entropy(logits_xu[:, 1].reshape(-1, c), yu.flatten(), reduction='none')

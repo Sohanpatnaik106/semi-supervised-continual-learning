@@ -314,7 +314,9 @@ def create_args():
 
     parser.add_argument('--dynamic_threshold', default = False, help='set dynamic threshold for consistency regularisation')
     parser.add_argument('--fm_thresh', default = 0.85, help='set dynamic threshold for consistency regularisation')
-    parser.add_argument('--fm_epsilon', default = 0.000001, help='set dynamic threshold for consistency regularisation')
+    parser.add_argument('--fm_epsilon', default = 0.000001, type = float)
+    parser.add_argument('--threshold_warmup', default = True, type = bool)
+    parser.add_argument('--non_linear_mapping', default = True, type = bool)
     
     return parser
 
