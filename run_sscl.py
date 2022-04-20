@@ -134,7 +134,9 @@ def run(args, seed):
                       'no_unlabeled_data': args.no_unlabeled_data,
                       'dynamic_threshold': args.dynamic_threshold,
                       'fm_thresh': args.fm_thresh,
-                      'fm_epsilon': args.fm_epsilon
+                      'fm_epsilon': args.fm_epsilon,
+                      'threshold_warmup': args.threshold_warmup,
+                      'non_linear_mapping': args.non_linear_mapping
                       }
     learner = learners.__dict__[args.learner_type].__dict__[args.learner_name](learner_config)
     print(learner.model)
@@ -315,8 +317,8 @@ def create_args():
     parser.add_argument('--dynamic_threshold', default = False, help='set dynamic threshold for consistency regularisation')
     parser.add_argument('--fm_thresh', default = 0.85, help='set dynamic threshold for consistency regularisation')
     parser.add_argument('--fm_epsilon', default = 0.000001, type = float)
-    parser.add_argument('--threshold_warmup', default = True, type = bool)
-    parser.add_argument('--non_linear_mapping', default = True, type = bool)
+    parser.add_argument('--threshold_warmup', default = False, type = bool)
+    parser.add_argument('--non_linear_mapping', default = False, type = bool)
     
     return parser
 

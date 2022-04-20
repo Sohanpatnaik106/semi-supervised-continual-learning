@@ -183,7 +183,9 @@ class DistillMatch(NormalNN):
                     self.validation(val_loader)
 
             # finetuning
-            if not self.first_task: self.data_weighting(train_dataset)
+            if not self.first_task: 
+                self.data_weighting(train_dataset)
+
             for epoch in range(self.fschedule[-1]):
                 self.epoch=epoch
                 data_timer = Timer()
@@ -241,7 +243,9 @@ class DistillMatch(NormalNN):
                 # sample dataset
                 train_dataset.sample_dataset(0.0, self.ood_holdout_ratio)
                 train_dataset_ul.sample_dataset(0.0, self.ood_holdout_ratio)
-                if not self.first_task: self.data_weighting(train_dataset, num_seen=self.pseudolabel_DW_dataset(train_loader, ood_type='ood'))
+                if not self.first_task: 
+                    self.data_weighting(train_dataset, num_seen=self.pseudolabel_DW_dataset(train_loader, ood_type='ood'))
+                
                 for epoch in range(self.ood_epochs):
                     self.epoch=epoch
                     losses_ood = AverageMeter()
@@ -416,7 +420,7 @@ class DistillMatch(NormalNN):
         if not self.threshold_warmup:
             beta = sigma / (np.max(sigma) + self.fm_epsilon)
         else:
-            beta = sigma / (np.max(np.max(sigma), sigma.shape[0] - np.sum(sigma)) + self.fm_epsilon)
+            beta = sigma / (max(np.max(sigma), sigma.shape[0] - np.sum(sigma)) + self.fm_epsilon)
 
         if self.non_linear_mapping:
             beta = beta / (2 - beta)
