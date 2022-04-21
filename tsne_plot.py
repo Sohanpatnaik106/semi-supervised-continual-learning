@@ -272,7 +272,7 @@ def create_args():
     parser.add_argument('--fm_epsilon', default = 0.000001, type = float)
     parser.add_argument('--threshold_warmup', default = False, type = bool)
     parser.add_argument('--non_linear_mapping', default = False, type = bool)
-    parser.add_argument('--visualisation_dir', default = "./visualisation", type = str)
+    parser.add_argument('--visualisation_dir', default = "./visualisation", type = bool)
     
     return parser
 
