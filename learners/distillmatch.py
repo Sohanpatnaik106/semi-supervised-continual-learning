@@ -79,6 +79,7 @@ class DistillMatch(NormalNN):
         self.num_deltas = 100
         self.num_delta_loop = 10
 
+
     ##########################################
     #           TSNE PLOTTING                #
     ##########################################
