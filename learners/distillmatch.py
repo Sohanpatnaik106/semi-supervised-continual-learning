@@ -10,6 +10,8 @@ import random
 import models
 import dataloaders
 import math
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 class DistillMatch(NormalNN):
 
@@ -77,7 +79,90 @@ class DistillMatch(NormalNN):
         self.num_deltas = 100
         self.num_delta_loop = 10
 
+    ##########################################
+    #           TSNE PLOTTING                #
+    ##########################################
 
+    def plot_tsne(self, train_loader, train_dataset, train_dataset_ul, model_dir, 
+                    val_loader = None, task_num = 1, visualisation_dir = "./visualisation"):
+
+        self.load_models(model_dir)
+
+        feats_l = []
+        feats_ul = []
+        y_l = []
+        y_ul = []
+
+        for i, (xl, y, xul, yul, task)  in enumerate(train_loader):
+
+            self.batch_xl = y.size(0)
+
+            if self.gpu:
+                xl = [xl[k].cuda() for k in range(len(xl))]
+                y = y.cuda()
+                xul = [xul[k].cuda() for k in range(len(xul))]
+            
+            yfeats_l = self.model.features(xl[0])
+            yfeats_l = F.relu(self.model.bn_last(yfeats_l))
+            yfeats_l = F.avg_pool2d(yfeats_l, 8)
+            yfeats_l = yfeats_l.view(yfeats_l.size(0), -1)
+            
+            yfeats_ul = self.model.features(xul[0])
+            yfeats_ul = F.relu(self.model.bn_last(yfeats_ul))
+            yfeats_ul = F.avg_pool2d(yfeats_ul, 8)
+            yfeats_ul = yfeats_ul.view(yfeats_ul.size(0), -1)
+
+            feats_l.append(yfeats_l)
+            feats_ul.append(yfeats_ul)
+            y_l.append(y)
+            y_ul.append(yul)
+
+        feats_l = torch.cat(feats_l, dim = 0)
+        feats_ul = torch.cat(feats_ul, dim = 0)
+        y_l = torch.cat(y_l, dim = 0)
+        y_ul = torch.cat(y_ul, dim = 0)
+
+        feats_l = feats_l.cpu().detach().numpy()
+        feats_ul = feats_ul.cpu().detach().numpy()
+        y_l = y_l.cpu().detach().numpy()
+        y_ul = y_ul.cpu().detach().numpy()
+
+        feats_reduced_l = TSNE(n_components = 2, learning_rate = 'auto', init = 'random').fit_transform(feats_l)
+        feats_reduced_ul = TSNE(n_components = 2, learning_rate = 'auto', init = 'random').fit_transform(feats_ul)
+
+        if self.non_linear_mapping and self.threshold_warmup:
+            visualisation_dir = os.path.join(visualisation_dir, "warmup_non_linear")
+        elif self.threshold_warmup:
+            visualisation_dir = os.path.join(visualisation_dir, "warmup")
+        elif self.non_linear_mapping:
+            visualisation_dir = os.path.join(visualisation_dir, "no_warmup_non_linear")
+        else:
+            visualisation_dir = os.path.join(visualisation_dir, "no_warmup")
+
+        if not os.path.exists(visualisation_dir):
+            os.makedirs(visualisation_dir)
+        
+        labelled_visualisation_dir = os.path.join(visualisation_dir, "labelled")
+        if not os.path.exists(labelled_visualisation_dir):
+            os.makedirs(labelled_visualisation_dir)
+
+        unlabelled_visualisation_dir = os.path.join(visualisation_dir, "unlabelled")
+        if not os.path.exists(unlabelled_visualisation_dir):
+            os.makedirs(unlabelled_visualisation_dir)
+
+        plt.title(f"T-SNE Plot for Labelled Data (Task ){task_num}")
+        plt.scatter(feats_reduced_l[:, 0], feats_reduced_l[:, 1], c = y_l, s = 5)
+        plt.xlabel("Component 1")
+        plt.ylabel("Component 2")
+        plt.savefig(os.path.join(labelled_visualisation_dir, "task_" + str(task_num)  + ".png"))
+        plt.clf()
+
+        plt.title(f"T-SNE Plot for Unlabelled Data (Task ){task_num}")
+        plt.scatter(feats_reduced_ul[:, 0], feats_reduced_ul[:, 1], c = y_ul, s = 5)
+        plt.xlabel("Component 1")
+        plt.ylabel("Component 2")
+        plt.savefig(os.path.join(unlabelled_visualisation_dir, "task_" + str(task_num) + ".png"))
+        plt.clf()
 
     ##########################################
     #           MODEL TRAINING               #
@@ -811,10 +896,12 @@ class DistillMatch(NormalNN):
     def load_models(self, filename):
         self.model.load_state_dict(torch.load(filename + 'class.pth'))
         self.ood_model.load_state_dict(torch.load(filename + 'ood.pth'))
+
         self.log('=> Load Done')
         if self.gpu:
             self.model = self.model.cuda()
             self.ood_model = self.ood_model.cuda()
+        
         self.model.eval()
         self.ood_model.eval()
  

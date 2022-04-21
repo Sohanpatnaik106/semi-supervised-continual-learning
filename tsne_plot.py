@@ -17,19 +17,7 @@ from dataloaders.utils import *
 from torch.utils.data import DataLoader
 import learners
 
-"""
-consider citing the benchmarking environment this was built on top of
-
-git url: https://github.com/GT-RIPL/Continual-Learning-Benchmark
-
-@article{hsu2018re,
-    title={Re-evaluating continual learning scenarios: A categorization and case for strong baselines},
-    author={Hsu, Yen-Chang and Liu, Yen-Cheng and Ramasamy, Anita and Kira, Zsolt},
-    journal={arXiv preprint arXiv:1810.12488},
-    year={2018}
-}
-"""
-def run(args, seed):
+def plot(args, seed):
     if not os.path.exists('outputs'):
         os.mkdir('outputs')
 
@@ -153,7 +141,8 @@ def run(args, seed):
     save_table_pc = -1*np.ones((num_tasks,num_tasks))
     pl_table = [[],[],[],[]]
     temp_dir = args.log_dir + '/temp'
-    if not os.path.exists(temp_dir): os.makedirs(temp_dir)
+    if not os.path.exists(temp_dir): 
+        os.makedirs(temp_dir)
 
     # for oracle
     out_dim_add = 0
@@ -166,6 +155,7 @@ def run(args, seed):
         max_task = min(args.max_task, len(task_names))
     else:
         max_task = len(task_names)
+
     for i in range(max_task):
 
         # set seeds
@@ -208,47 +198,10 @@ def run(args, seed):
         # Learn
         test_dataset.load_dataset(prev, i, train=False)
         test_loader  = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False, num_workers=args.workers)
-        if args.learner_type == 'distillation':
-            learner.learn_batch(train_loader, train_dataset, prev, test_loader, test_dataset)
-        else:
-            model_save_dir = args.log_dir + '/models/repeat-'+str(seed+1)+'/task-'+task_names[i]+'/'
-            if not os.path.exists(model_save_dir): os.makedirs(model_save_dir)
-            learner.learn_batch(train_loader, train_dataset, train_dataset_ul, model_save_dir, test_loader)
-
-        # Evaluate
-        acc_table[train_name] = OrderedDict()
-        acc_table_pt[train_name] = OrderedDict()
-        for j in range(i+1):
-            val_name = task_names[j]
-            print('validation split name:', val_name)
-            test_dataset.load_dataset(prev, j, train=True)
-            test_loader  = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False, num_workers=args.workers)
-            acc_table[val_name][train_name] = learner.validation(test_loader)
-            save_table_pc[i,j] = acc_table[val_name][train_name]
-            acc_table_pt[val_name][train_name] = learner.validation(test_loader, task_in = tasks_logits[j])
-        save_table.append(np.mean([acc_table[task_names[j]][train_name] for j in range(i+1)]))
-
-        # Evaluate PL
-        if args.learner_name == 'DistillMatch' and i+1 < len(task_names) and not args.oracle_flag:
-            test_dataset.load_dataset(prev, len(task_names)-1, train=False)
-            test_loader  = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False, num_workers=args.workers)
-            stats = learner.validation_pl(test_loader)
-            names = ['stats-fpr','stats-tpr','stats-de']
-            for ii in range(3):
-                pl_table[ii].append(stats[ii])
-                save_file = temp_dir + '/'+names[ii]+'_table.csv'
-                np.savetxt(save_file, np.asarray(pl_table[ii]), delimiter=",", fmt='%.2f')
-            run_ood['tpr'] = pl_table[1]
-            run_ood['fpr'] = pl_table[0]
-            run_ood['de'] = pl_table[2]
-
-        # save temporary results
-        save_file = temp_dir + '/acc_table.csv'
-        np.savetxt(save_file, np.asarray(save_table), delimiter=",", fmt='%.2f')
-        save_file_pc = temp_dir + '/acc_table_pc.csv'
-        np.savetxt(save_file_pc, np.asarray(save_table_pc), delimiter=",", fmt='%.2f')
-
-    return acc_table, acc_table_pt, task_names, run_ood
+        model_save_dir = args.log_dir + '/models/repeat-'+str(seed+1)+'/task-'+task_names[i]+'/'
+        if not os.path.exists(model_save_dir): 
+            os.makedirs(model_save_dir)
+        learner.plot_tsne(train_loader, train_dataset, train_dataset_ul, model_save_dir, test_loader, task_num = int(task_names[i]), visualisation_dir = args.visualisation_dir)
 
 def create_args():
     
@@ -319,6 +272,7 @@ def create_args():
     parser.add_argument('--fm_epsilon', default = 0.000001, type = float)
     parser.add_argument('--threshold_warmup', default = False, type = bool)
     parser.add_argument('--non_linear_mapping', default = False, type = bool)
+    parser.add_argument('--visualisation_dir', default = "./visualisation", type = str)
     
     return parser
 
@@ -358,49 +312,9 @@ if __name__ == '__main__':
         )
 
     avg_final_acc = np.zeros(args.repeat)
-    avg_ood = {'tpr': {}, 'fpr': {}, 'de': {}}
-
-
-    # load results
-    if os.path.exists(args.log_dir + '/results.yaml'):
-        
-        # load yaml results
-        save_file = args.log_dir + '/results.yaml'
-        with open(save_file, 'r') as yaml_file:
-            yaml_result = yaml.safe_load(yaml_file)
-            avg_acc_all = np.asarray(yaml_result['avg_acc_history'])
-        save_file = args.log_dir + '/results_pt.yaml'
-        with open(save_file, 'r') as yaml_file:
-            yaml_result = yaml.safe_load(yaml_file)
-            avg_acc_table = np.asarray(yaml_result['acc_pt_history'])
-        save_file = args.log_dir + '/results_pt_bounded.yaml'
-        with open(save_file, 'r') as yaml_file:
-            yaml_result = yaml.safe_load(yaml_file)
-            avg_acc_table_pt = np.asarray(yaml_result['acc_pt_history'])
-
-        # load ood results
-        if os.path.exists(args.log_dir + '/results_ood-tpr.yaml'):
-            for key in avg_ood.keys():
-                save_file = args.log_dir + '/results_ood-'+key+'.yaml'
-                with open(save_file, 'r') as yaml_file:
-                    yaml_result = yaml.safe_load(yaml_file)
-                    avg_ood[key] = np.asarray(yaml_result['history'])
-
-        # next repeat needed
-        start_r = avg_acc_all.shape[1]
-
-        # extend if more repeats left
-        if start_r < args.repeat:
-            max_task = avg_acc_all.shape[0]
-            avg_acc_table = np.append(avg_acc_table, np.zeros((max_task, max_task, args.repeat-start_r)), axis=-1)
-            avg_acc_table_pt = np.append(avg_acc_table_pt, np.zeros((max_task, max_task, args.repeat-start_r)), axis=-1)
-            avg_acc_all = np.append(avg_acc_all, np.zeros((max_task,args.repeat-start_r)), axis=-1)
-            if os.path.exists(args.log_dir + '/results_ood-tpr.yaml'):
-                for key in avg_ood.keys(): avg_ood[key] = np.append(avg_ood[key], np.zeros((avg_ood[key].shape[0],args.repeat-start_r)), axis=-1)
-
-    else:
-        start_r = 0
-
+    avg_ood = {'tpr': {}, 'fpr': {}, 'de': {}, 'roc-auc': {}}
+    
+    start_r = 0
     for r in range(start_r, args.repeat):
 
         print('************************************')
@@ -413,81 +327,6 @@ if __name__ == '__main__':
         np.random.seed(seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
-
-        ####### Run the experiment #######
-        acc_table, acc_table_pt, task_names, run_ood = run(args, seed)
-        print(acc_table)
-
-        # number of tasks to be performed
-        if args.max_task > 0:
-            max_task = min(args.max_task, len(task_names))
-        else:
-            max_task = len(task_names)
-
-        # init total run store
-        if r == 0: 
-            avg_acc_table = np.zeros((max_task, max_task, args.repeat))
-            avg_acc_table_pt = np.zeros((max_task, max_task, args.repeat))
-            avg_acc_all = np.zeros((max_task,args.repeat))
-            for key in avg_ood.keys(): avg_ood[key] = np.zeros((min(max_task,len(task_names)-1),args.repeat))
-
-        # Calculate average performance across tasks
-        # Customize this part for a different performance metric
-        avg_acc_history = [0] * max_task
-        for i in range(max_task):
-            train_name = task_names[i]
-            cls_acc_sum = 0
-            for j in range(i+1):
-                val_name = task_names[j]
-                cls_acc_sum += acc_table[val_name][train_name]
-                avg_acc_table[j,i,r] = acc_table[val_name][train_name]
-                avg_acc_table_pt[j,i,r] = acc_table_pt[val_name][train_name]
-            avg_acc_history[i] = cls_acc_sum / (i + 1)
-            print('Task', train_name, 'average acc:', avg_acc_history[i])
-
-        # Gather the final avg accuracy
-        avg_final_acc[r] = avg_acc_history[-1]
-        avg_acc_all[:,r] = avg_acc_history
         
-
-        # Print the summary so far
-        print('===Summary of experiment repeats:', r+1, '/', args.repeat, '===')
-        print('The last avg acc of all repeats:', avg_final_acc[:r+1])
-        print('mean:', avg_final_acc[:r+1].mean(), 'std:', avg_final_acc[:r+1].std())
-
-        # save results in yml files
-        yaml_results = {}
-        yaml_results['avg_acc_mean'] = avg_acc_all[:,:r+1].mean(axis=1).tolist()
-        if r>1: yaml_results['avg_acc_std'] = avg_acc_all[:,:r+1].std(axis=1).tolist()
-        yaml_results['avg_acc_history'] = avg_acc_all[:,:r+1].tolist()
-        save_file = args.log_dir + '/results.yaml'
-        with open(save_file, 'w') as yaml_file:
-            yaml.dump(yaml_results, yaml_file, default_flow_style=False)
-
-        # save per task results
-        yaml_results = {}
-        yaml_results['acc_pt_mean'] = avg_acc_table[:,:,:r+1].mean(axis=2).tolist()
-        yaml_results['acc_pt_history'] = avg_acc_table[:,:,:r+1].tolist()
-        save_file = args.log_dir + '/results_pt.yaml'
-        with open(save_file, 'w') as yaml_file:
-            yaml.dump(yaml_results, yaml_file, default_flow_style=False)
-
-        # task indexes known
-        yaml_results = {}
-        yaml_results['acc_pt_mean'] = avg_acc_table_pt[:,:,:r+1].mean(axis=2).tolist()
-        yaml_results['acc_pt_history'] = avg_acc_table_pt[:,:,:r+1].tolist()
-        save_file = args.log_dir + '/results_pt_bounded.yaml'
-        with open(save_file, 'w') as yaml_file:
-            yaml.dump(yaml_results, yaml_file, default_flow_style=False)
-
-        # save ood results
-        if run_ood is not None:
-            for key in avg_ood.keys(): avg_ood[key][:,r] = run_ood[key]
-            for key in avg_ood.keys():
-                yaml_results = {}
-                yaml_results['mean'] = avg_ood[key][:,:r+1].mean(axis=1).tolist()
-                if r>1: yaml_results['std'] = avg_ood[key][:,:r+1].std(axis=1).tolist()
-                yaml_results['history'] = avg_ood[key][:,:r+1].tolist()
-                save_file = args.log_dir + '/results_ood-'+key+'.yaml'
-                with open(save_file, 'w') as yaml_file:
-                    yaml.dump(yaml_results, yaml_file, default_flow_style = False)
+        ####### T-sne plotting
+        plot(args, seed)
