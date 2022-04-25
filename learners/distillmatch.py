@@ -42,6 +42,10 @@ class DistillMatch(NormalNN):
         self.threshold_warmup = learner_config['threshold_warmup']
         self.non_linear_mapping = learner_config['non_linear_mapping']
 
+        # Check impact of various losses
+        self.is_distillation_loss = learner_config['is_distillation_loss']
+        self.is_unsupervised_loss = learner_config['is_unsupervised_loss']
+
         # ood model
         self.ood_model = self.create_ood_model()
         self.ood_model_past = self.create_ood_model()
@@ -415,14 +419,20 @@ class DistillMatch(NormalNN):
     # apply update to class model
     def update_model(self, inputs_labeled, targets, inputs_unlabeled, unlabeled_ind):
         
+        # TODO: Remove other losses except cross entropy and distillation
         # unsupervised loss
-        loss_unsupervised = torch.zeros((1,), requires_grad=True).cuda()    
-        if (not self.first_task) and self.config['fm_loss']:
-            tasks = [
-                    np.arange(0,self.valid_out_dim)
-                    ]
-            task_idx = [np.arange(len(inputs_unlabeled[0]))]
-            loss_unsupervised = self.fm_loss(tasks, inputs_unlabeled, task_idx)   
+        #   1. Remove distlisation loss
+        #   2. Remove unlabelled loss and distillation loss
+        #   3. Finally, remove w in loss
+        loss_unsupervised = torch.zeros((1,), requires_grad=True).cuda()
+
+        if self.is_unsupervised_loss:    
+            if (not self.first_task) and self.config['fm_loss']:
+                tasks = [
+                        np.arange(0,self.valid_out_dim)
+                        ]
+                task_idx = [np.arange(len(inputs_unlabeled[0]))]
+                loss_unsupervised = self.fm_loss(tasks, inputs_unlabeled, task_idx)   
 
         # supervised loss  
         logits_labeled = self.forward(inputs_labeled[0]) 
@@ -432,17 +442,18 @@ class DistillMatch(NormalNN):
         total_loss = loss_supervised + self.weight_aux*loss_unsupervised
 
         # distillation loss
-        if (not self.first_task):
-            inputs_distill = []
-            inputs_distill.append(inputs_labeled[0])
-            inputs_distill.append(inputs_unlabeled[0])
-            logits_distill_past = self.copy_model.forward(torch.cat(inputs_distill)).detach()
-            logits_distill_current = self.forward(torch.cat(inputs_distill))
-            for task in self.past_tasks:
-                pout_current = (logits_distill_current[:,task]/self.T).log_softmax(dim=1)
-                pout_past = (logits_distill_past[:,task]/self.T).softmax(dim=1)
-                loss_weight = len(task) / self.valid_out_dim
-                total_loss += (self.distf(pout_current, pout_past)).sum(dim=1).mean() * loss_weight
+        if self.is_distillation_loss:
+            if (not self.first_task):
+                inputs_distill = []
+                inputs_distill.append(inputs_labeled[0])
+                inputs_distill.append(inputs_unlabeled[0])
+                logits_distill_past = self.copy_model.forward(torch.cat(inputs_distill)).detach()
+                logits_distill_current = self.forward(torch.cat(inputs_distill))
+                for task in self.past_tasks:
+                    pout_current = (logits_distill_current[:,task]/self.T).log_softmax(dim=1)
+                    pout_past = (logits_distill_past[:,task]/self.T).softmax(dim=1)
+                    loss_weight = len(task) / self.valid_out_dim
+                    total_loss += (self.distf(pout_current, pout_past)).sum(dim=1).mean() * loss_weight
             
         # apply update
         self.optimizer.zero_grad()

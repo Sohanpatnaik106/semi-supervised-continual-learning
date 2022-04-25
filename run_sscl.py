@@ -136,7 +136,9 @@ def run(args, seed):
                       'fm_thresh': args.fm_thresh,
                       'fm_epsilon': args.fm_epsilon,
                       'threshold_warmup': args.threshold_warmup,
-                      'non_linear_mapping': args.non_linear_mapping
+                      'non_linear_mapping': args.non_linear_mapping,
+                      'is_unsupervised_loss': args.is_unsupervised_loss,
+                      'is_distillation_loss': args.is_distillation_loss
                       }
     learner = learners.__dict__[args.learner_type].__dict__[args.learner_name](learner_config)
     print(learner.model)
@@ -312,13 +314,17 @@ def create_args():
     parser.add_argument('--oracle_flag', default=False, action='store_true', help='Upper bound for oracle')
     parser.add_argument('--max_task', type=int, default=-1, help="number tasks to perform; if -1, then all tasks")
     parser.add_argument('--memory', type=int, default=0, help="size of memory for replay")
-    parser.add_argument('--DW', default=False, action='store_true', help='dataset balancing')
 
     parser.add_argument('--dynamic_threshold', default = False, help='set dynamic threshold for consistency regularisation')
     parser.add_argument('--fm_thresh', default = 0.85, help='set dynamic threshold for consistency regularisation')
     parser.add_argument('--fm_epsilon', default = 0.000001, type = float)
     parser.add_argument('--threshold_warmup', default = False, type = bool)
     parser.add_argument('--non_linear_mapping', default = False, type = bool)
+
+    # Check impact of various losses
+    parser.add_argument('--DW', default=False, action='store_true', help='dataset balancing')
+    parser.add_argument('--is_unsupervised_loss', default = False, type = bool)
+    parser.add_argument('--is_distillation_loss', default = False, type = bool)
     
     return parser
 

@@ -10,7 +10,7 @@ OUTDIR=outputs/CIFAR100-10k/realistic-rand
 MAXTASK=-1
 
 # hard coded inputs
-REPEAT=1
+REPEAT=3
 SCHEDULE="200"
 MODELNAME="WideResNet_28_2_cifar"
 MODELNAMEOOD_DC="WideResNet_DC_28_2_cifar"
@@ -71,17 +71,52 @@ mkdir -p $OUTDIR
 #     --max_task $MAXTASK --log_dir ${OUTDIR}/dm/warmup_non_linear --dynamic_threshold False --fm_thresh 0.95 --fm_epsilon 0.000001 --threshold_warmup True --non_linear_mapping True
 
 ##########################################
+#       Check impact of losses           #
+##########################################
+
+# Without dynamic threshold
+
+# Removed Distillation loss
+# python -u run_sscl.py --dataset CIFAR100 --l_dist $L_DIST --train_aug --rand_split --gpuid $GPUID --repeat $REPEAT --labeled_samples 10000 --unlabeled_task_samples -1 --ul_dist $UL_DIST  \
+#     --force_out_dim 100 --first_split_size $SPLIT --other_split_size $SPLIT  --schedule $SCHEDULE_GD --schedule_type decay --batch_size $BS --ul_batch_size $UBS    \
+#     --optimizer SGD --lr $LR_PL --momentum 0.9 --weight_decay $WD   \
+#     --learner_type distillmatch --learner_name DistillMatch --pl_flag  \
+#     --weight_aux $WA_PL --fm_loss \
+#     --memory $MEMORY --model_name $MODELNAME --ood_model_name $MODELNAMEOOD_DC --model_type resnet --DW --FT  \
+#     --tpr $TPR --oodtpr $TPR_OOD \
+#     --max_task $MAXTASK --log_dir ${OUTDIR}/dm/no_distillation/ --fm_thresh 0.85 --fm_epsilon 0.000001 --is_unsupervised_loss True 
+
+# python -u run_sscl.py --dataset CIFAR100 --l_dist $L_DIST --train_aug --rand_split --gpuid $GPUID --repeat $REPEAT --labeled_samples 10000 --unlabeled_task_samples -1 --ul_dist $UL_DIST  \
+#     --force_out_dim 100 --first_split_size $SPLIT --other_split_size $SPLIT  --schedule $SCHEDULE_GD --schedule_type decay --batch_size $BS --ul_batch_size $UBS    \
+#     --optimizer SGD --lr $LR_PL --momentum 0.9 --weight_decay $WD   \
+#     --learner_type distillmatch --learner_name DistillMatch --pl_flag  \
+#     --weight_aux $WA_PL --fm_loss \
+#     --memory $MEMORY --model_name $MODELNAME --ood_model_name $MODELNAMEOOD_DC --model_type resnet --DW --FT  \
+#     --tpr $TPR --oodtpr $TPR_OOD \
+#     --max_task $MAXTASK --log_dir ${OUTDIR}/dm/weighted_supervised/ --fm_thresh 0.85 --fm_epsilon 0.000001
+
+# python -u run_sscl.py --dataset CIFAR100 --l_dist $L_DIST --train_aug --rand_split --gpuid $GPUID --repeat $REPEAT --labeled_samples 10000 --unlabeled_task_samples -1 --ul_dist $UL_DIST  \
+#     --force_out_dim 100 --first_split_size $SPLIT --other_split_size $SPLIT  --schedule $SCHEDULE_GD --schedule_type decay --batch_size $BS --ul_batch_size $UBS    \
+#     --optimizer SGD --lr $LR_PL --momentum 0.9 --weight_decay $WD   \
+#     --learner_type distillmatch --learner_name DistillMatch --pl_flag  \
+#     --weight_aux $WA_PL --fm_loss \
+#     --memory $MEMORY --model_name $MODELNAME --ood_model_name $MODELNAMEOOD_DC --model_type resnet --FT  \
+#     --tpr $TPR --oodtpr $TPR_OOD \
+#     --max_task $MAXTASK --log_dir ${OUTDIR}/dm/unweighted_supervised/ --fm_thresh 0.85 --fm_epsilon 0.000001 --is_unsupervised_loss True
+
+
+##########################################
 #           TSNE PLOTTING                #
 ##########################################
 
-python -u tsne_plot.py --dataset CIFAR100 --l_dist $L_DIST --train_aug --rand_split --gpuid $GPUID --repeat $REPEAT --labeled_samples 10000 --unlabeled_task_samples -1 --ul_dist $UL_DIST  \
-    --force_out_dim 100 --first_split_size $SPLIT --other_split_size $SPLIT  --schedule $SCHEDULE_GD --schedule_type decay --batch_size $BS --ul_batch_size $UBS    \
-    --optimizer SGD --lr $LR_PL --momentum 0.9 --weight_decay $WD   \
-    --learner_type distillmatch --learner_name DistillMatch --pl_flag  \
-    --weight_aux $WA_PL --fm_loss \
-    --memory $MEMORY --model_name $MODELNAME --ood_model_name $MODELNAMEOOD_DC --model_type resnet --DW --FT  \
-    --tpr $TPR --oodtpr $TPR_OOD \
-    --max_task $MAXTASK --log_dir ${OUTDIR}/dm/no_warmup --dynamic_threshold True --fm_thresh 0.95 --fm_epsilon 0.000001 
+# python -u tsne_plot.py --dataset CIFAR100 --l_dist $L_DIST --train_aug --rand_split --gpuid $GPUID --repeat $REPEAT --labeled_samples 10000 --unlabeled_task_samples -1 --ul_dist $UL_DIST  \
+#     --force_out_dim 100 --first_split_size $SPLIT --other_split_size $SPLIT  --schedule $SCHEDULE_GD --schedule_type decay --batch_size $BS --ul_batch_size $UBS    \
+#     --optimizer SGD --lr $LR_PL --momentum 0.9 --weight_decay $WD   \
+#     --learner_type distillmatch --learner_name DistillMatch --pl_flag  \
+#     --weight_aux $WA_PL --fm_loss \
+#     --memory $MEMORY --model_name $MODELNAME --ood_model_name $MODELNAMEOOD_DC --model_type resnet --DW --FT  \
+#     --tpr $TPR --oodtpr $TPR_OOD \
+#     --max_task $MAXTASK --log_dir ${OUTDIR}/dm/no_warmup --dynamic_threshold True --fm_thresh 0.95 --fm_epsilon 0.000001 
 
 # dm - with threshold warmup
 # python -u tsne_plot.py --dataset CIFAR100 --l_dist $L_DIST --train_aug --rand_split --gpuid $GPUID --repeat $REPEAT --labeled_samples 10000 --unlabeled_task_samples -1 --ul_dist $UL_DIST  \

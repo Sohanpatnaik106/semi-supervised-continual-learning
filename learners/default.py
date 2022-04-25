@@ -227,7 +227,7 @@ class NormalNN(nn.Module):
 
         # labeled loss
         if self.dw:
-            dw_cls     = self.dw_d['seen'][targets.long()]
+            dw_cls = self.dw_d['seen'][targets.long()]
             loss_supervised = (self.criterion_fn(logits, targets.long()) * dw_cls).mean()
         else:
             loss_supervised = self.criterion_fn(logits, targets.long())
