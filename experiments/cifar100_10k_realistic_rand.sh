@@ -1,5 +1,5 @@
 # process inputs
-DEFAULTGPU=1
+DEFAULTGPU=0
 GPUID=${1:-$DEFAULTGPU}
 SPLIT=5
 
@@ -175,3 +175,12 @@ mkdir -p $OUTDIR
 #         --memory $MEMORY --model_name $MODELNAME --model_type resnet  \
 #         --learner_type distillation --learner_name GD --co 0.0 --distill_loss L C    \
 #         --max_task $MAXTASK --log_dir ${OUTDIR}/dr
+
+python -u run_sscl.py --dataset CIFAR100 --l_dist $L_DIST --train_aug --rand_split --gpuid $GPUID --repeat $REPEAT --labeled_samples 10000 --unlabeled_task_samples -1 --ul_dist $UL_DIST  \
+    --force_out_dim 100 --first_split_size $SPLIT --other_split_size $SPLIT  --schedule $SCHEDULE_GD --schedule_type decay --batch_size $BS --ul_batch_size $UBS    \
+    --optimizer SGD --lr $LR_PL --momentum 0.9 --weight_decay $WD   \
+    --learner_type distillmatch --learner_name DistillMatch --pl_flag  \
+    --weight_aux $WA_PL --fm_loss \
+    --memory $MEMORY --model_name $MODELNAME --ood_model_name $MODELNAMEOOD_DC --model_type resnet --FT  \
+    --tpr $TPR --oodtpr $TPR_OOD \
+    --max_task $MAXTASK --log_dir ${OUTDIR}/dm/unweighted_undistilled/ --fm_thresh 0.85 --fm_epsilon 0.000001 --is_unsupervised_loss True

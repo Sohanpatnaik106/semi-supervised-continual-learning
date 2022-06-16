@@ -379,7 +379,7 @@ class GD(nn.Module):
         if self.cuda:
             for key in dw_c: 
                 if dw_c[key] is not None:
-                    if key is 'local':
+                    if key == 'local':
                         dw_c[key] = [dw_c[key][k].cuda() for k in range(len(dw_c[key]))]
                     else:
                         dw_c[key] = dw_c[key].cuda()
@@ -748,7 +748,7 @@ class GD(nn.Module):
 
     # push models and loss functions to cuda
     def cuda(self):
-        torch.cuda.set_device(self.config['gpuid'][0])
+        torch.cuda.set_device(self.config['gpuid'][-1])
         self.model = self.model.cuda()
         self.prior_model = self.prior_model.cuda()
         self.current_model = self.current_model.cuda()
