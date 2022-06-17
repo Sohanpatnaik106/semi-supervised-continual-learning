@@ -209,7 +209,7 @@ def run(args, seed):
         print("Out dim add:", out_dim_add)
         # Learn
         test_dataset.load_dataset(prev, i, train=False)
-        test_loader  = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False, num_workers=args.workers)
+        test_loader  = DataLoader(test_dataset, batch_size = args.batch_size, shuffle=False, drop_last=False, num_workers=args.workers)
         if args.learner_type == 'distillation':
             learner.learn_batch(train_loader, train_dataset, prev, test_loader, test_dataset)
         else:
